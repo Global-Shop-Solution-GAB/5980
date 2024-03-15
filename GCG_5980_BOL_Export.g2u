@@ -1,0 +1,157 @@
+Program.Sub.ScreenSU.Start
+Gui.Form_1..Create
+Gui.Form_1..Caption("BOL Export")
+Gui.Form_1..Size(5685,3330)
+Gui.Form_1..MinX(0)
+Gui.Form_1..MinY(0)
+Gui.Form_1..Position(0,0)
+Gui.Form_1..BackColor(-2147483633)
+Gui.Form_1..MousePointer(0)
+Gui.Form_1..Event(UnLoad,Unload)
+Gui.Form_1..Event(Drop,cmd_Browser)
+Gui.Form_1.cmd_Export.Create(Button)
+Gui.Form_1.cmd_Export.Size(1380,375)
+Gui.Form_1.cmd_Export.Position(2010,2040)
+Gui.Form_1.cmd_Export.Caption("Export")
+Gui.Form_1.cmd_Export.DefaultValue("")
+Gui.Form_1.cmd_Export.Event(Click,cmdExport_Click)
+Gui.Form_1.dtp_1.Create(DatePicker)
+Gui.Form_1.dtp_1.Size(1605,285)
+Gui.Form_1.dtp_1.Position(1980,675)
+Gui.Form_1.lbl_Date.Create(Label,"Select ship date",True,1350,255,0,2100,450,True,2,"Arial",8,-2147483633,0)
+Gui.Form_1.txt_File.Create(TextBox,"",True,3240,300,0,975,1515,True,0,"Arial",8,-2147483643,1)
+Gui.Form_1.lbl_File.Create(Label,"File Location",True,1080,255,0,2190,1290,True,0,"Arial",8,-2147483633,0)
+Gui.Form_1.cmd_Browser.Create(Button)
+Gui.Form_1.cmd_Browser.Size(375,375)
+Gui.Form_1.cmd_Browser.Position(4260,1485)
+Gui.Form_1.cmd_Browser.Caption("^")
+Gui.Form_1.cmd_Browser.DefaultValue("")
+Gui.Form_1.cmd_Browser.Event(Click,cmd_Browser)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+	V.Global.sFilePath.Declare	
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Create a custom menu item in Order Entry > Transactions > Bill of Lading > BOL Export 
+'GAB program that will gather the data needed for orders shipped on date in export screen and orders that have a 3RD Party Freight that = "JLS"
+'Export file should be in a .xls or .xlsx format
+
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+	
+'	Function.Intrinsic.Debug.InvokeDebugger
+'	Function.Intrinsic.Debug.Stop
+	
+	V.Local.bRet.Declare
+	F.Automation.MSExcel.CheckPresence(V.Local.bRet)
+	
+	F.Intrinsic.Control.If(V.Local.bRet,=,"False")
+		F.Intrinsic.UI.Msgbox("Excel no found. Install Excel to run export","Excel Missing")
+		F.Intrinsic.Control.End
+	F.Intrinsic.Control.EndIf
+	
+	F.Intrinsic.Control.CallSub(SetAnchors)
+	
+	Gui.Form_1..Show(True)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.cmdExport_Click.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+	V.Local.sSQL.Declare
+	V.Local.dDate.Declare
+	V.Local.sDate.Declare
+	V.Local.sRet.Declare
+	V.Local.sColumns.Declare
+
+	F.Intrinsic.Control.If(V.Screen.Form_1!txt_File.Caption.Trim,=,"")
+		F.Intrinsic.UI.Msgbox("Please select file path.")
+		F.Intrinsic.Control.ExitSub
+	F.Intrinsic.Control.Else
+
+	Gui.Form_1..Visible(False)
+	
+	'F.Intrinsic.UI.InvokeWaitDialog("Looking for records")
+	
+	V.Local.dDate.Set(V.Screen.Form_1!dtp_1.Caption)
+	F.Intrinsic.String.Format(V.Local.dDate,"YYYY-MM-DD",V.Local.sDate)
+	
+		F.Intrinsic.String.Build("SELECT 'WERK' AS CLIENT, CONCAT(DATE1,' 12:00 AM') AS SHIP_DATE, '' AS  Required_Delivery_Date, '' AS Required_Delivery_Time, '' AS Shipper_ID, T1.FROM_NAME AS Shipper_Name, T1.FROM_ADRS1 AS Shipper_Address, T1.FROM_CITY AS Shipper_City, T1.FROM_STATE AS Shipper_St, T1.FROM_ZIP AS Shipper_Zip, T1.FROM_COUNTRY AS Shipper_Country, T1.FROM_TELEPHONE AS Shipper_Ph, '' AS Cons_ID, T1.TO_NAME AS Cons_Name, T1.TO_ADRS1 AS Cons_Address, T1.TO_CITY AS Cons_City, T1.TO_STATE AS Cons_St, T1.TO_ZIP AS Cons_Zip, T1.TO_COUNTRY AS Cons_Country, T1.TO_TELEPHONE AS Cons_Ph, '' AS Carrier_ID, T3.LONG_DESC AS Carrier_Name, T3.SCAC AS SCAC_Code, T1.TRACKING_NO AS Pro_No, 'BOL#' AS Ref_Type_1, T1.WAYBILL_NO AS Ref_Value_1, 'Customer PO #' AS Ref_Type_2, T4.CUST_PO AS Ref_Value_2, 'Customer Order Number' AS Ref_Type_3, T4.ORDER_NO AS Ref_Value_3, '' AS Ref_Type_4, '' AS Ref_Value_4, '' AS Ref_Type_5, '' AS Ref_Value_5, '' AS Ref_Type_6, '' AS Ref_Value_6, '' AS Ref_Type_7, '' AS Ref_Value_7, '' AS Ref_Type_8, '' AS Ref_Value_8, '' AS Ref_Type_9, '' AS Ref_Value_9, '' AS Ref_Type_10, '' AS Ref_Value_10, CASE WHEN T1.CONTAINS_HAZMAT='1' THEN 'TRUE' ELSE '' END AS Haz_Mat, CASE WHEN T1.PALLETS = '0' THEN 'CARTON' ELSE 'PALLET' END AS Handling_Type, '1' AS Handling_Units, T5.PKGD_WEIGHT, (T1.SPCL_INSTR_1 + T1.SPCL_INSTR_2 + T1.SPCL_INSTR_3 + T1.SPCL_INSTR_4) AS Cust_Delivery_Instructions, '' AS Commodity_ID, T7.NMFC_NO AS NMFC_Item, T6.PART_DESC, CASE WHEN T7.FRT_CLASS <> '' THEN CONCAT('CL',T7.FRT_CLASS) END AS Class, CASE WHEN T3.PAYMENT_OPTION='PA' OR T3.PAYMENT_OPTION='PP' THEN 'PREPAID' ELSE '' END AS Terms FROM   (((((V_BOL_HEADER T1 LEFT OUTER JOIN V_OE_CARRIER T3 ON T1.CARRIER_CD=T3.CARRIER_CD) LEFT OUTER JOIN V_BOL_PACK_DTL T6 ON T1.WAYBILL_NO=T6.WAYBILL_NO) LEFT OUTER JOIN V_BOL_CARTON_NUM T5 ON (T6.PCK_NO=T5.PCK_NO) AND (T6.CRTN_NO=T5.CRTN_NO)) INNER JOIN V_BOL_PALLET_NUM T2 ON ((T6.PCK_NO=T2.PCK_NO) AND (T6.PLLT_NO=T2.PLLT_NO)) AND (T6.WAYBILL_NO=T2.WAYBILL_NO)) LEFT OUTER JOIN V_BOL_CO_INFO T4 ON ((T6.ORDER_NO=T4.ORDER_NO) AND (T6.ORDER_SEQ=T4.ORDER_SEQ)) AND (T6.WAYBILL_NO=T4.WAYBILL_NO)) LEFT OUTER JOIN V_BOL_CARTON_INFO T7 ON ((T5.PCK_NO=T7.PCK_NO) AND (T5.CRTN_NO=T7.CRTN_NO)) AND (T5.WAYBILL_NO=T7.WAYBILL_NO) WHERE T1.DATE1 = '{0}' AND T1.THIRD_PARTY_FC = 'JLS';",V.Local.sDate,V.Local.sSQL)
+
+	Function.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass,3000)
+	F.ODBC.Connection!con.ExecuteAndReturn(V.Local.sSQL,V.Local.sRet)
+	F.ODBC.Connection!con.Close
+	
+	V.Local.sColumns.Set("Client*!*Ship_Date*!*Required_Delivery_Date*!*Required_Delivery_Time*!*Shipper_ID*!*Shipper_Name*!*Shipper_Address*!*Shipper_City*!*Shipper_St*!*Shipper_Zip*!*Shipper_Country*!*Shipper_Ph*!*Cons_ID*!*Cons_Name*!*Cons_Address*!*Cons_City*!*Cons_St*!*Cons_Zip*!*Cons_Country*!*Cons_Ph*!*Carrier_ID*!*Carrier_Name*!*SCAC_Code*!*Pro_No*!*Ref_Type_1*!*Ref_Value_1*!*Ref_Type_2*!*Ref_Value_2*!*Ref_Type_3*!*Ref_Value_3*!*Ref_Type_4*!*Ref_Value_4*!*Ref_Type_5*!*Ref_Value_5*!* Ref_Type_6*!* Ref_Value_6*!*Ref_Type_7*!*Ref_Value_7*!*Ref_Type_8*!*Ref_Value_8*!*Ref_Type_9*!*Ref_Value_9*!*Ref_Type_10*!*Ref_Value_10*!*Haz_Mat*!*Handling_Type*!*Handling_Units*!*GrossWeight*!*Cust_Delivery_Instructions*!*Commodity_ID*!*NMFC_Item*!*Commodity_Desc*!*Class*!*Terms")
+	
+	F.Intrinsic.Control.If(V.Local.sRet.IsNotNullOrWhiteSpace)
+		'F.Intrinsic.UI.InvokeWaitDialog("Putting things together")
+		F.Intrinsic.String.Build("{0}#$#{1}",V.Local.sColumns,V.Local.sRet,V.Local.sRet)
+		F.Intrinsic.String.Replace(V.Local.sRet,"#$#","$!$",V.Local.sRet)
+		F.Automation.MSExcel.WriteSpreadsheet(V.Global.sFilePath,V.Local.sRet)
+		F.Intrinsic.UI.Msgbox("Export Complete","Complete")
+	F.Intrinsic.Control.Else	
+		F.Intrinsic.UI.Msgbox("No records found.","Sorry")
+	F.Intrinsic.Control.EndIf
+	
+	'F.Intrinsic.UI.CloseWaitDialog
+	
+	F.Intrinsic.Control.CallSub(Unload)
+	
+F.Intrinsic.Control.EndIf
+	
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.cmdExport_Click.End
+
+Program.Sub.Unload.Start
+Gui.Form_1..Show(False)
+F.Intrinsic.Control.End
+
+Program.Sub.Unload.End
+
+Program.Sub.cmd_Browser.Start
+	V.Local.sFilePath.Declare
+	
+	F.Intrinsic.String.Build("{0}\Export.xlsx",V.Caller.FilesDir,V.Local.sFilePath)
+'	"%userprofile%\desktop\Export.xlsx"
+	F.Intrinsic.UI.ShowSaveFileDialog(V.Local.sFilePath,"*.xlsx","",V.Global.sFilePath)
+	F.Intrinsic.Control.If(V.Global.sFilePath,<>,"***CANCEL***")
+		Gui.Form_1.txt_File.Text(V.Global.sFilePath)
+	F.Intrinsic.Control.EndIf
+Program.Sub.cmd_Browser.End
+
+Program.Sub.SetAnchors.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+	
+	'0 - None
+	'1 - Top
+	'2 - Bottom
+	'4 - Left
+	'8 - Right
+
+	gui.Form_1.cmd_Browser.Anchor(9)
+	Gui.Form_1.cmd_Export.Anchor(1)
+	Gui.Form_1.dtp_1.Anchor(1)
+	gui.Form_1.lbl_Date.Anchor(1)
+	gui.Form_1.lbl_File.Anchor(1)
+	Gui.Form_1.txt_File.Anchor(13)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End 
+F.Intrinsic.Control.EndTry
+Program.Sub.SetAnchors.End
